@@ -1,6 +1,162 @@
-.temp {
-  margin-top: 5rem;
+.page {
+  padding: 1.5rem 1rem 6rem;
+}
+
+.title {
+  margin: 0 0 0.5rem;
+  font-size: 1.3rem;
+}
+
+.desc {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: var(--gray-icon-opacity07);
+}
+
+.card {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid var(--post-border-color);
+  border-radius: 16px;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.timeInput {
+  font-size: 2.2rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  text-align: center;
+  background: white;
+}
+
+.primary,
+.secondary {
+  padding: 0.85rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary {
+  border: none;
+  background-color: var(--disc-doctor-color);
+  color: white;
+}
+
+.secondary {
+  border: 1px solid var(--border-color);
+  background-color: white;
+  color: black;
+}
+
+.armedLabel {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--gray-icon-opacity05);
+}
+
+.armedTime {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--disc-doctor-color);
+}
+
+.notice {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--gray-icon-opacity07);
+}
+
+.success {
+  margin: 0;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.perm {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--gray-icon-opacity05);
+}
+
+.error {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #dc2626;
+}
+
+/* 울리는 중 전체화면 */
+.ringing {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background-color: var(--disc-doctor-color);
+  color: white;
+  text-align: center;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    background-color: #0b6fb3;
+  }
+}
+
+.ringingTitle {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.ringingSub {
+  margin: 0.5rem 0 2rem;
+  font-size: 1rem;
+}
+
+.meter {
+  width: 100%;
+  max-width: 320px;
+  height: 18px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  background-color: white;
+  transition: width 0.2s ease;
+}
+
+.meterText {
+  margin: 0.75rem 0 1.5rem;
+  font-size: 2.2rem;
+  font-weight: 800;
+}
+
+.debug {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.ringing .error {
+  color: #ffe4e6;
 }
