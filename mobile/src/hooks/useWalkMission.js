@@ -4,7 +4,7 @@ import { Accelerometer, Pedometer } from "expo-sensors";
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
-import { StepCounter } from "../logic/stepCounter";
+import { StepCounter, confirmedSteps } from "../logic/stepCounter";
 import { VOICE_STAGES, isMutedByWalking, stageForElapsed } from "../logic/voiceStages";
 import { VOICE_FILES } from "../voices";
 
@@ -21,6 +21,7 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
   const [stage, setStage] = useState(() => stageForElapsed((Date.now() - startedAt.getTime()) / 1000));
   const [muted, setMuted] = useState(false);
   const [sensorInfo, setSensorInfo] = useState({ pedometer: null, accelerometer: null });
+  const [raw, setRaw] = useState({ pedometer: 0, accel: 0 }); // 개발용: 센서별 원래 값
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -29,6 +30,8 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
   useEffect(() => {
     let pedometerSteps = 0;
     let accelSteps = 0;
+    let pedometerOk = false;
+    let accelOk = false;
     let shown = 0;
     let completed = false;
     const subs = [];
@@ -36,8 +39,9 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
     const missionStartedAt = Date.now();
 
     const update = () => {
-      // 하드웨어 만보기와 가속도 계산 중 큰 값 (만보기가 늦게 업데이트되는 걸 보완)
-      const s = Math.max(pedometerSteps, accelSteps);
+      // 두 센서가 동의하는 만큼만 인정 (한쪽이 손 흔들기에 속아도 통과 못 함)
+      const s = confirmedSteps({ pedometer: pedometerSteps, accel: accelSteps, pedometerOk, accelOk });
+      setRaw((r) => (r.pedometer === pedometerSteps && r.accel === accelSteps ? r : { pedometer: pedometerSteps, accel: accelSteps }));
       if (s > shown) {
         shown = s;
         lastStepAtRef.current = Date.now();
@@ -56,6 +60,7 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
         const available = await Pedometer.isAvailableAsync();
         const perm = available ? await Pedometer.requestPermissionsAsync() : null;
         const ok = !!(available && perm?.granted);
+        pedometerOk = ok;
         setSensorInfo((p) => ({ ...p, pedometer: ok }));
         if (ok) {
           subs.push(
@@ -72,6 +77,7 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
       // 가속도 센서로 직접 계산 (권한 불필요, 즉시 반응)
       try {
         const ok = await Accelerometer.isAvailableAsync();
+        accelOk = ok;
         setSensorInfo((p) => ({ ...p, accelerometer: ok }));
         if (ok) {
           Accelerometer.setUpdateInterval(20); // 50Hz
@@ -140,5 +146,5 @@ export function useWalkMission({ startedAt, voiceLang, forceMode, targetSteps, o
     else player.play();
   }, [muted, stage, voiceLang]);
 
-  return { steps, stage, muted, sensorInfo };
+  return { steps, stage, muted, sensorInfo, raw };
 }

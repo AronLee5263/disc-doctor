@@ -10,7 +10,7 @@ import { colors } from "../theme";
 export default function RingingScreen({ startedAt, settings, onComplete, onStop }) {
   const insets = useSafeAreaInsets();
   const lang = settings.voiceLang === "en" ? "en" : "ko";
-  const { steps, stage, muted, sensorInfo } = useWalkMission({
+  const { steps, stage, muted, sensorInfo, raw } = useWalkMission({
     startedAt,
     voiceLang: lang,
     forceMode: settings.forceMode,
@@ -55,6 +55,12 @@ export default function RingingScreen({ startedAt, settings, onComplete, onStop 
           <Text style={styles.hint}>'동작 및 피트니스' 권한이 꺼져 있어 가속도 센서로만 측정해요.</Text>
         ) : null}
         {noSensor ? <Text style={styles.hint}>이 기기에서는 걸음 센서를 쓸 수 없어요.</Text> : null}
+        {__DEV__ ? (
+          // 개발 중에만 보이는 센서별 값 (출시 앱에는 안 나옴). 손 흔들기에 어느 센서가 속는지 확인용
+          <Text style={styles.debug}>
+            만보기 {sensorInfo.pedometer ? raw.pedometer : "-"} · 가속도 {sensorInfo.accelerometer ? raw.accel : "-"}
+          </Text>
+        ) : null}
       </View>
 
       {!settings.forceMode ? (
@@ -80,6 +86,7 @@ const styles = StyleSheet.create({
   dotOn: { backgroundColor: "white" },
   count: { marginTop: 28, fontSize: 44, fontWeight: "800", color: "white", fontVariant: ["tabular-nums"] },
   meters: { marginTop: 4, fontSize: 16, color: "white", opacity: 0.85 },
+  debug: { marginTop: 16, fontSize: 12, color: "white", opacity: 0.6, fontVariant: ["tabular-nums"] },
   hint: { marginTop: 32, fontSize: 13, color: "white", opacity: 0.85, textAlign: "center" },
   stop: { alignSelf: "center", paddingVertical: 14, paddingHorizontal: 40, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)" },
   stopText: { color: "white", fontSize: 15, fontWeight: "600" },

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { StepCounter } from "../stepCounter.js";
+import { StepCounter, confirmedSteps } from "../stepCounter.js";
 import {
   planNotifications,
   ringingOccurrence,
@@ -50,6 +50,46 @@ test("빠르게 흔들기(8Hz)는 걸음 아님", () => {
   const c = new StepCounter();
   walk(c, { seconds: 5, hz: 8, amp: 6 });
   assert.ok(c.steps <= 2, `steps=${c.steps}`);
+});
+
+test("제자리에서 손을 좌우로 흔드는 건(걷는 박자여도) 걸음 아님", () => {
+  const c = new StepCounter();
+  const n = rng(3);
+  // 폰을 세워 든 채(중력 = z) 좌우(x)로 1.8Hz, 크게 흔들기
+  for (let t = 0; t < 8000; t += DT)
+    c.addSample({ x: 6 * Math.sin(2 * Math.PI * 1.8 * (t / 1000)) + n() * 0.3, y: n() * 0.3, z: G + n() * 0.3 }, t);
+  assert.ok(c.steps <= 1, `steps=${c.steps}`);
+});
+
+test("폰을 눕혀 들고 걸어도(중력 = y) 걸음으로 셈", () => {
+  const c = new StepCounter();
+  const n = rng(5);
+  for (let t = 0; t < 10000; t += DT)
+    c.addSample({ x: n() * 0.4, y: G + 3 * Math.sin(2 * Math.PI * 1.8 * (t / 1000)), z: n() * 0.4 }, t);
+  assert.ok(c.steps >= 15, `steps=${c.steps}`);
+});
+
+test("손목을 돌리며 흔들기(폰 방향이 계속 바뀜)는 걸음 아님", () => {
+  const c = new StepCounter();
+  // 폰이 ±60도로 기울었다 돌아오면서 위아래로도 출렁이는 손 흔들기
+  for (let t = 0; t < 8000; t += DT) {
+    const s = t / 1000;
+    const tilt = (Math.PI / 3) * Math.sin(2 * Math.PI * 1.8 * s);
+    const bounce = 4 * Math.sin(2 * Math.PI * 1.8 * s); // 흔드는 박자마다 위아래로도 출렁임
+    c.addSample({ x: (G + bounce) * Math.sin(tilt), y: 0, z: (G + bounce) * Math.cos(tilt) }, t);
+  }
+  assert.ok(c.steps <= 1, `steps=${c.steps}`);
+});
+
+test("두 센서가 동의하는 만큼만 걸음 인정", () => {
+  // 만보기가 손 흔들기에 속아 8걸음을 세도 가속도가 0이면 2걸음까지만
+  assert.equal(confirmedSteps({ pedometer: 8, accel: 0, pedometerOk: true, accelOk: true }), 2);
+  // 진짜 걸으면 둘 다 셈
+  assert.equal(confirmedSteps({ pedometer: 5, accel: 4, pedometerOk: true, accelOk: true }), 5);
+  // 가속도가 흔들기에 속아도 만보기가 0이면 0
+  assert.equal(confirmedSteps({ pedometer: 0, accel: 9, pedometerOk: true, accelOk: true }), 0);
+  // 만보기 권한이 없으면 가속도만
+  assert.equal(confirmedSteps({ pedometer: 0, accel: 5, pedometerOk: false, accelOk: true }), 5);
 });
 
 test("한 번 툭 치는 충격은 걸음 아님", () => {
