@@ -37,6 +37,13 @@
           "enableBackgroundPlayback": false
         }
       ]
-    ]
+    ],
+    "android": {
+      "package": "com.aronlee5263.discdoctor",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    }
   }
 }

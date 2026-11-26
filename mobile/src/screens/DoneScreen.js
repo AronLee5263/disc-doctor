@@ -2,7 +2,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "../theme";
 
-export default function DoneScreen({ result, onClose }) {
+const pad = (n) => String(n).padStart(2, "0");
+
+export default function DoneScreen({ result, nextRepeatAt, onClose }) {
+  const next = nextRepeatAt ? new Date(nextRepeatAt) : null;
   return (
     <View style={styles.screen}>
       <Text style={styles.emoji}>🎉</Text>
@@ -10,6 +13,11 @@ export default function DoneScreen({ result, onClose }) {
       {result ? (
         <Text style={styles.sub}>
           {result.steps}걸음 · {result.seconds}초 만에 알람을 껐어요
+        </Text>
+      ) : null}
+      {next && next > new Date() ? (
+        <Text style={styles.sub}>
+          다음 알람은 {pad(next.getHours())}:{pad(next.getMinutes())}에 다시 울려요
         </Text>
       ) : null}
       <Pressable style={({ pressed }) => [styles.button, pressed && { opacity: 0.7 }]} onPress={onClose}>

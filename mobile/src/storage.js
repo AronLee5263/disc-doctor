@@ -6,8 +6,14 @@ const KEY = "discdoctor:v1";
 
 export const DEFAULT_STATE = {
   alarm: { hour: 7, minute: 0, enabled: false },
-  dismissedDay: null, // 미션을 완료한 마지막 알람 날짜 (YYYY-MM-DD)
-  history: [], // [{ dayKey, steps, seconds, at }] 미션 완료 기록 (최근 60개)
+  settings: {
+    voiceLang: "ko", // "ko" | "en"
+    forceMode: true, // 켜면: 끄기 버튼 없음 + 무음 모드여도 울림
+    repeatMinutes: 0, // 다 걸은 뒤 다시 울릴 간격 (0 = 반복 안 함, 30, 60)
+  },
+  nextRepeatAt: null, // 다음 반복 알람 시각 (ISO)
+  dismissedKeys: [], // 미션을 끝낸 알람 회차 키 (최근 30개)
+  history: [], // [{ key, steps, seconds, at }] 완료 기록 (최근 60개)
 };
 
 export async function loadState() {
@@ -15,7 +21,14 @@ export async function loadState() {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return DEFAULT_STATE;
     const saved = JSON.parse(raw);
-    return { ...DEFAULT_STATE, ...saved, alarm: { ...DEFAULT_STATE.alarm, ...saved.alarm } };
+    return {
+      ...DEFAULT_STATE,
+      ...saved,
+      alarm: { ...DEFAULT_STATE.alarm, ...saved.alarm },
+      settings: { ...DEFAULT_STATE.settings, ...saved.settings },
+      dismissedKeys: Array.isArray(saved.dismissedKeys) ? saved.dismissedKeys : [],
+      history: Array.isArray(saved.history) ? saved.history : [],
+    };
   } catch {
     return DEFAULT_STATE;
   }

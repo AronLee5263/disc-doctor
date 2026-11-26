@@ -10,47 +10,51 @@ import RingingScreen from "./src/screens/RingingScreen";
 import DoneScreen from "./src/screens/DoneScreen";
 import { loadState, saveState } from "./src/storage";
 import { clearDeliveredAlarms, ensureNotificationPermission, rescheduleAlarm } from "./src/scheduler";
-import { ringingDayKey } from "./src/logic/alarmPlan";
+import { nextRepeatAfter, ringingOccurrence } from "./src/logic/alarmPlan";
 
 // 데이터 로딩이 끝날 때까지만 스플래시(로고)를 보여준다. 일부러 기다리게 하지 않음.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const TEST_RING = "test";
+const TEST_KEY = "test";
 
 export default function App() {
   const [state, setState] = useState(null);
-  const [ringing, setRinging] = useState(null); // null | 날짜 키 | TEST_RING
+  const [ringing, setRinging] = useState(null); // null | { key, startedAt }
   const [doneResult, setDoneResult] = useState(null);
   const [notice, setNotice] = useState("");
   const stateRef = useRef(null);
   const rescheduleTimer = useRef(null);
   stateRef.current = state;
 
-  const updateState = useCallback((updater) => {
-    setState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
-      saveState(next);
-      return next;
-    });
+  /** 상태 저장 + (필요하면) 알람 다시 예약 */
+  const commit = useCallback((next, { reschedule = false, debounce = 0 } = {}) => {
+    stateRef.current = next;
+    setState(next);
+    saveState(next);
+    if (!reschedule) return;
+    clearTimeout(rescheduleTimer.current);
+    rescheduleTimer.current = setTimeout(() => {
+      rescheduleAlarm(stateRef.current).catch(() => {});
+    }, debounce);
   }, []);
 
   // 지금이 알람 시각(~30분)인데 아직 안 걸었으면 울림 화면으로
   const checkRinging = useCallback(() => {
     const s = stateRef.current;
     if (!s) return;
-    const key = ringingDayKey(s.alarm, new Date(), s.dismissedDay);
-    if (key) setRinging((cur) => cur ?? key);
+    const occ = ringingOccurrence(s.alarm, s.nextRepeatAt, new Date(), s.dismissedKeys);
+    if (occ) setRinging((cur) => cur ?? occ);
   }, []);
 
-  // 1) 앱 시작: 저장된 데이터 로드 → 알람 다시 예약(7일치 보충) → 스플래시 닫기
+  // 1) 앱 시작: 저장된 데이터 로드 → 울릴 때인지 확인 → 스플래시 닫기 → 7일치 다시 예약
   useEffect(() => {
     (async () => {
       const loaded = await loadState();
-      setState(loaded);
       stateRef.current = loaded;
+      setState(loaded);
       checkRinging();
       SplashScreen.hideAsync().catch(() => {});
-      if (loaded.alarm.enabled) rescheduleAlarm(loaded.alarm, loaded.dismissedDay).catch(() => {});
+      rescheduleAlarm(loaded).catch(() => {});
     })();
   }, [checkRinging]);
 
@@ -66,48 +70,88 @@ export default function App() {
     return () => subs.forEach((s) => s.remove());
   }, [checkRinging]);
 
+  const askPermission = useCallback(async () => {
+    const granted = await ensureNotificationPermission();
+    setNotice(granted ? "" : "알림 권한이 꺼져 있어요. 설정 > 알림에서 허용해야 알람이 울려요.");
+  }, []);
+
   const onChangeAlarm = useCallback(
-    async (alarm) => {
-      updateState((prev) => ({ ...prev, alarm }));
-      setNotice("");
-      if (alarm.enabled) {
-        const granted = await ensureNotificationPermission();
-        if (!granted) setNotice("알림 권한이 꺼져 있어요. 설정 > 알림에서 허용해야 알람이 울려요.");
-      }
+    (alarm) => {
+      if (alarm.enabled) askPermission();
       // 시간 휠을 돌리는 동안 매번 예약하지 않도록 잠깐 기다렸다가 예약
-      clearTimeout(rescheduleTimer.current);
-      rescheduleTimer.current = setTimeout(() => {
-        rescheduleAlarm(alarm, stateRef.current?.dismissedDay).catch(() => {});
-      }, 700);
+      commit({ ...stateRef.current, alarm }, { reschedule: true, debounce: 700 });
     },
-    [updateState]
+    [commit, askPermission]
   );
 
-  const onComplete = useCallback(
-    (result) => {
-      const key = ringing;
-      setRinging(null);
-      setDoneResult(result);
-      if (key && key !== TEST_RING) {
-        const s = stateRef.current;
-        const history = [...s.history, { dayKey: key, ...result, at: new Date().toISOString() }].slice(-60);
-        updateState({ ...s, dismissedDay: key, history });
-        clearDeliveredAlarms();
-        rescheduleAlarm(s.alarm, key).catch(() => {}); // 오늘 남은 재알림 취소
-      }
+  const onChangeSettings = useCallback(
+    (patch) => {
+      const s = stateRef.current;
+      commit({ ...s, settings: { ...s.settings, ...patch } }, { reschedule: true });
     },
-    [ringing, updateState]
+    [commit]
+  );
+
+  const onCancelRepeat = useCallback(() => {
+    commit({ ...stateRef.current, nextRepeatAt: null }, { reschedule: true });
+  }, [commit]);
+
+  /** 울림 종료 처리. walked=false면 '그냥 끄기'(강제 모드 꺼짐일 때만 가능) */
+  const finishRinging = useCallback(
+    (result, walked) => {
+      const occ = ringing;
+      setRinging(null);
+      setDoneResult(walked ? result : null);
+      if (!occ || occ.key === TEST_KEY) return;
+
+      const s = stateRef.current;
+      const now = new Date();
+      const next = {
+        ...s,
+        dismissedKeys: [...s.dismissedKeys.filter((k) => k !== occ.key), occ.key].slice(-30),
+        // 다 걸었으면 설정한 간격 뒤에 다시 울림. '그냥 끄기'면 반복도 멈춤.
+        nextRepeatAt: walked ? nextRepeatAfter(now, s.settings.repeatMinutes)?.toISOString() ?? null : null,
+        history: walked ? [...s.history, { key: occ.key, ...result, at: now.toISOString() }].slice(-60) : s.history,
+      };
+      clearDeliveredAlarms();
+      commit(next, { reschedule: true }); // 이번 회차의 남은 재알림 취소 + 반복 예약
+    },
+    [ringing, commit]
   );
 
   if (!state) return null;
 
   let screen;
-  if (ringing) screen = <RingingScreen onComplete={onComplete} />;
-  else if (doneResult) screen = <DoneScreen result={doneResult} onClose={() => setDoneResult(null)} />;
-  else
+  if (ringing) {
     screen = (
-      <HomeScreen state={state} notice={notice} onChangeAlarm={onChangeAlarm} onTestNow={() => setRinging(TEST_RING)} />
+      <RingingScreen
+        key={ringing.key}
+        startedAt={ringing.startedAt}
+        settings={state.settings}
+        onComplete={(r) => finishRinging(r, true)}
+        onStop={() => finishRinging(null, false)}
+      />
     );
+  } else if (doneResult) {
+    screen = (
+      <DoneScreen
+        result={doneResult}
+        nextRepeatAt={state.nextRepeatAt}
+        onClose={() => setDoneResult(null)}
+      />
+    );
+  } else {
+    screen = (
+      <HomeScreen
+        state={state}
+        notice={notice}
+        onChangeAlarm={onChangeAlarm}
+        onChangeSettings={onChangeSettings}
+        onCancelRepeat={onCancelRepeat}
+        onTestNow={() => setRinging({ key: TEST_KEY, startedAt: new Date() })}
+      />
+    );
+  }
 
   return (
     <SafeAreaProvider>

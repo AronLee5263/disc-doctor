@@ -20,7 +20,7 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "test": "node --test src/logic/__tests__/logic.test.mjs",
-    "make-sound": "node scripts/make-alarm-sound.mjs"
+    "make-voices": "bash scripts/make-placeholder-voices.sh"
   },
   "private": true
 }
