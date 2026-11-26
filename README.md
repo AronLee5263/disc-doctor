@@ -1,3 +1,6 @@
+> **📱 iOS 앱 버전(걸어야 꺼지는 알람)은 [`mobile/`](./mobile) 폴더에 있습니다.** 실행 방법은 [`mobile/README.md`](./mobile/README.md)를 보세요.
+> 이 폴더(루트)는 2023년에 만든 React 웹 버전입니다.
+
 ![disc doctor back](https://github.com/AronLee5263/disc-doctor/assets/117638456/144b235a-3328-422d-b0b2-2d2653d7b711)
 
   <!-- <img src="https://user-images.githubusercontent.com/117638456/253851018-d8aa8a49-3824-46c9-a2fa-05d1a460e52c.png" width="200" height="400"/> -->

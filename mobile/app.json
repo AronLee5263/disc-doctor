@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "disc doctor",
+    "slug": "disc-doctor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.aronlee5263.discdoctor",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#1d9bf0"
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "알람을 끄려면 걸어야 해요. 걸음 수를 세기 위해 동작 및 피트니스 정보를 사용합니다."
+        }
+      ],
+      "expo-notifications",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "enableBackgroundPlayback": false
+        }
+      ]
+    ]
+  }
+}
